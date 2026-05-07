@@ -23,7 +23,7 @@ const START_MESSAGE = [
 export class YoutubeTranscriptBot {
   constructor(telegram, options = {}) {
     this.telegram = telegram;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     this.config = options.config ?? undefined;
   }
 

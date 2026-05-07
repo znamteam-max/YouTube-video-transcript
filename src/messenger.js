@@ -8,12 +8,12 @@ export class MessengerApiError extends Error {
 }
 
 export class MessengerClient {
-  constructor(tokenValue, fetchImpl = fetch) {
+  constructor(tokenValue, fetchImpl = globalThis.fetch) {
     const host = ["api", "telegram", "org"].join(".");
     const botPrefix = ["bo", "t"].join("");
 
     this.baseUrl = `https://${host}/${botPrefix}${tokenValue}`;
-    this.fetch = fetchImpl;
+    this.fetch = bindFetch(fetchImpl);
   }
 
   async call(method, payload) {
@@ -116,4 +116,12 @@ export class MessengerClient {
 
     return data.result;
   }
+}
+
+function bindFetch(fetchImpl) {
+  if (fetchImpl === globalThis.fetch) {
+    return globalThis.fetch.bind(globalThis);
+  }
+
+  return (input, init) => fetchImpl(input, init);
 }
