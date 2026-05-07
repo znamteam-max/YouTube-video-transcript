@@ -42,7 +42,7 @@ Optional:
 YOUTUBE_PO_TOKEN=
 ```
 
-`YOUTUBE_TRANSCRIPT_DEV_API_KEY` is strongly recommended for Cloudflare Workers. YouTube often returns HTTP 429 to direct requests from data center IPs, including Workers. When this key is present, the bot skips direct YouTube scraping and asks the transcript provider for the best available caption track.
+`YOUTUBE_TRANSCRIPT_DEV_API_KEY` is strongly recommended for Cloudflare Workers. YouTube often returns HTTP 429 to direct requests from data center IPs, including Workers. When this key is present, the bot skips direct YouTube scraping and asks `https://www.youtubetranscript.dev/api/v2/transcribe` for the best available caption track.
 
 5. Deploy the Worker.
 6. Open this URL once in your browser:

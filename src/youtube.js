@@ -1,5 +1,5 @@
 const YOUTUBE_WATCH_URL = "https://www.youtube.com/watch";
-const TRANSCRIPT_DEV_API_URL = "https://youtubetranscript.dev/api/v2/transcribe";
+const TRANSCRIPT_DEV_API_URL = "https://www.youtubetranscript.dev/api/v2/transcribe";
 const REQUEST_HEADERS = {
   "accept-language": "en-US,en;q=0.9",
   "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
@@ -240,6 +240,7 @@ async function fetchTranscriptViaManagedApi(videoId, track, fetchImpl, config) {
 async function fetchManagedTranscriptData(payload, fetchImpl, config) {
   const response = await fetchImpl(TRANSCRIPT_DEV_API_URL, {
     method: "POST",
+    redirect: "error",
     headers: {
       "authorization": `Bearer ${config.YOUTUBE_TRANSCRIPT_DEV_API_KEY}`,
       "content-type": "application/json"
