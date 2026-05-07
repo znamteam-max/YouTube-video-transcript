@@ -1,75 +1,107 @@
 # YouTube Video Transcript Telegram Bot
 
-Telegram-бот принимает ссылку на YouTube-видео и возвращает полную расшифровку из доступных субтитров.
+Telegram bot that accepts a YouTube link and returns a full transcript from the video's available subtitles.
 
-Если у видео есть несколько дорожек субтитров, бот показывает список языков и отдельно помечает источник:
+If a video has several subtitle tracks, the bot asks which language to use and marks the source:
 
-- `загружены вручную на YouTube` — обычные загруженные субтитры;
-- `автоматически сгенерированы YouTube` — auto captions / ASR.
+- `manual` / uploaded subtitles;
+- `auto` / YouTube auto-generated subtitles.
 
-## Требования
+The project has two runtimes:
 
-- Node.js 20 или новее.
-- Токен Telegram-бота от [BotFather](https://t.me/BotFather).
+- local long polling: `src/index.js`;
+- Cloudflare Workers webhook: `src/worker.js`.
 
-Проект не использует внешние npm-зависимости.
+## Cloudflare Workers Deploy
 
-## Запуск
+The Worker is stateless. Language-choice buttons contain only `videoId` and track index; when a user taps a button, the Worker fetches the caption list again. No KV/D1 database is required.
 
-1. Создайте `.env` на основе `.env.example`.
-2. Укажите токен:
+1. Push this repository to GitHub.
+2. In Cloudflare, create a Worker connected to this GitHub repository.
+3. Use the repository `wrangler.toml`:
+
+```toml
+name = "youtube-video-transcript-bot"
+main = "src/worker.js"
+compatibility_date = "2026-05-07"
+workers_dev = true
+```
+
+4. Add Worker secrets / environment variables:
+
+```env
+TELEGRAM_BOT_TOKEN=123456789:your_bot_token
+WEBHOOK_SECRET=long_random_secret_for_telegram_header
+SETUP_SECRET=long_random_secret_for_one_time_setup_url
+```
+
+Optional:
+
+```env
+YOUTUBE_PO_TOKEN=
+YOUTUBE_TRANSCRIPT_DEV_API_KEY=
+```
+
+5. Deploy the Worker.
+6. Open this URL once in your browser:
+
+```text
+https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev/setup-webhook?secret=SETUP_SECRET_VALUE
+```
+
+The Worker will call Telegram `setWebhook` for:
+
+```text
+https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev/telegram/webhook
+```
+
+After that, send `/start` to the bot in Telegram and then send a YouTube link.
+
+## Local Run
+
+Create `.env` from `.env.example`:
 
 ```env
 TELEGRAM_BOT_TOKEN=123456789:your_bot_token
 ```
 
-Опционально:
-
-```env
-# Если YouTube отдаёт пустые timedtext-субтитры без Proof-of-Origin token.
-YOUTUBE_PO_TOKEN=
-
-# Fallback на managed API, если не хотите заниматься PO token.
-YOUTUBE_TRANSCRIPT_DEV_API_KEY=
-```
-
-3. Установите lockfile-окружение:
+Run:
 
 ```bash
 npm install
-```
-
-4. Запустите бота:
-
-```bash
 npm start
 ```
 
-Для запуска без npm:
+For Cloudflare local dev:
 
 ```bash
-node src/index.js
+copy .dev.vars.example .dev.vars
+npm run cf:dev
 ```
 
-## Как это работает
+For direct Wrangler deploy:
 
-1. Бот получает YouTube-ссылку и извлекает video id.
-2. Загружает страницу видео и читает список `captionTracks`.
-3. Если дорожка одна, сразу скачивает ее текст.
-4. Если дорожек несколько, просит выбрать язык и показывает источник субтитров.
-5. Длинные расшифровки отправляет `.txt`-файлом, короткие — обычным сообщением.
+```bash
+npm run cf:deploy
+```
 
-Важно: у YouTube нет стабильного публичного API для произвольных транскриптов. В 2025+ часть `timedtext`-запросов возвращает пустой ответ без Proof-of-Origin token. Поэтому бот поддерживает `YOUTUBE_PO_TOKEN` и опциональный fallback `YOUTUBE_TRANSCRIPT_DEV_API_KEY`.
+## How It Works
 
-## Проверка
+1. Extracts the YouTube `videoId` from the message.
+2. Reads the video's `captionTracks`.
+3. Sends a language/source selector if several tracks exist.
+4. Downloads the selected transcript.
+5. Sends short transcripts as text and long transcripts as `.txt` files.
+
+Important: YouTube does not provide a stable public transcript API for arbitrary videos. Some `timedtext` requests now return an empty response without a Proof-of-Origin token, so the bot supports optional `YOUTUBE_PO_TOKEN` and `YOUTUBE_TRANSCRIPT_DEV_API_KEY`.
+
+## Checks
 
 ```bash
 npm run check
 ```
 
-Команда выполняет синтаксическую проверку и unit-тесты для разбора YouTube-ссылок и форматов субтитров.
-
-Живой smoke-test против YouTube:
+Live YouTube smoke test:
 
 ```bash
 npm run smoke:youtube -- M7lc1UVf-VE

@@ -1,8 +1,6 @@
 TELEGRAM_BOT_TOKEN=123456789:replace_me
-
-# Cloudflare Workers webhook mode.
-WEBHOOK_SECRET=
-SETUP_SECRET=
+WEBHOOK_SECRET=replace_with_random_secret
+SETUP_SECRET=replace_with_random_setup_secret
 
 # Optional. Some YouTube caption endpoints require a Proof-of-Origin token.
 YOUTUBE_PO_TOKEN=

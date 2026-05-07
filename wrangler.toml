@@ -1,0 +1,4 @@
+name = "youtube-video-transcript-bot"
+main = "src/worker.js"
+compatibility_date = "2026-05-07"
+workers_dev = true

@@ -104,7 +104,12 @@ export async function listCaptionTracks(videoId, fetchImpl = fetch) {
   };
 }
 
-export async function fetchTranscript(videoId, track, fetchImpl = fetch) {
+export async function fetchTranscript(
+  videoId,
+  track,
+  fetchImpl = fetch,
+  config = runtimeConfig()
+) {
   if (!track?.baseUrl) {
     throw new YoutubeTranscriptError("У дорожки субтитров нет URL.", "BAD_CAPTION_TRACK");
   }
@@ -112,13 +117,13 @@ export async function fetchTranscript(videoId, track, fetchImpl = fetch) {
   let nativeError;
 
   try {
-    return await fetchTranscriptFromCaptionTrack(track, fetchImpl);
+    return await fetchTranscriptFromCaptionTrack(track, fetchImpl, config);
   } catch (error) {
     nativeError = error;
   }
 
-  if (process.env.YOUTUBE_TRANSCRIPT_DEV_API_KEY) {
-    return fetchTranscriptViaManagedApi(videoId, track, fetchImpl);
+  if (config.YOUTUBE_TRANSCRIPT_DEV_API_KEY) {
+    return fetchTranscriptViaManagedApi(videoId, track, fetchImpl, config);
   }
 
   if (nativeError?.code === "EMPTY_TRANSCRIPT") {
@@ -135,13 +140,13 @@ export async function fetchTranscript(videoId, track, fetchImpl = fetch) {
   throw nativeError;
 }
 
-async function fetchTranscriptFromCaptionTrack(track, fetchImpl) {
+async function fetchTranscriptFromCaptionTrack(track, fetchImpl, config) {
   const formats = ["json3", "vtt", ""];
   let lastError;
 
   for (const format of formats) {
     try {
-      const url = buildCaptionUrl(track, format);
+      const url = buildCaptionUrl(track, format, config);
       const response = await fetchImpl(url, {
         headers: REQUEST_HEADERS
       });
@@ -172,11 +177,11 @@ async function fetchTranscriptFromCaptionTrack(track, fetchImpl) {
   throw lastError;
 }
 
-async function fetchTranscriptViaManagedApi(videoId, track, fetchImpl) {
+async function fetchTranscriptViaManagedApi(videoId, track, fetchImpl, config) {
   const response = await fetchImpl(TRANSCRIPT_DEV_API_URL, {
     method: "POST",
     headers: {
-      "authorization": `Bearer ${process.env.YOUTUBE_TRANSCRIPT_DEV_API_KEY}`,
+      "authorization": `Bearer ${config.YOUTUBE_TRANSCRIPT_DEV_API_KEY}`,
       "content-type": "application/json"
     },
     body: JSON.stringify({
@@ -349,7 +354,7 @@ function parseVttTranscript(vtt) {
   return lines.join("\n").trim();
 }
 
-function buildCaptionUrl(track, format) {
+function buildCaptionUrl(track, format, config) {
   const url = new URL(track.baseUrl);
 
   if (format) {
@@ -357,23 +362,27 @@ function buildCaptionUrl(track, format) {
   }
 
   url.searchParams.set("c", "WEB");
-  url.searchParams.set("cver", process.env.YOUTUBE_CLIENT_VERSION ?? "2.20260506.01.00");
+  url.searchParams.set("cver", config.YOUTUBE_CLIENT_VERSION ?? "2.20260506.01.00");
   url.searchParams.set("cplayer", "UNIPLAYER");
   url.searchParams.set("cplatform", "DESKTOP");
   url.searchParams.set("cbr", "Chrome");
-  url.searchParams.set("cbrver", process.env.YOUTUBE_BROWSER_VERSION ?? "137.0.0.0");
+  url.searchParams.set("cbrver", config.YOUTUBE_BROWSER_VERSION ?? "137.0.0.0");
   url.searchParams.set("cos", "Windows");
   url.searchParams.set("cosver", "10.0");
 
-  if (process.env.YOUTUBE_PO_TOKEN) {
+  if (config.YOUTUBE_PO_TOKEN) {
     url.searchParams.set("potc", "1");
-    url.searchParams.set("pot", process.env.YOUTUBE_PO_TOKEN);
+    url.searchParams.set("pot", config.YOUTUBE_PO_TOKEN);
     url.searchParams.set("xorb", "2");
     url.searchParams.set("xobt", "3");
     url.searchParams.set("xovt", "3");
   }
 
   return url;
+}
+
+function runtimeConfig() {
+  return globalThis.process?.env ?? {};
 }
 
 function extractManagedTranscriptText(data) {

@@ -7,7 +7,6 @@ import {
   formatTrackLabel,
   shouldSendAsDocument
 } from "./format.js";
-import { SelectionStore } from "./store.js";
 import {
   extractVideoId,
   fetchTranscript,
@@ -24,8 +23,8 @@ const START_MESSAGE = [
 export class YoutubeTranscriptBot {
   constructor(telegram, options = {}) {
     this.telegram = telegram;
-    this.store = options.store ?? new SelectionStore();
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.config = options.config ?? undefined;
   }
 
   async handleUpdate(update) {
@@ -72,12 +71,11 @@ export class YoutubeTranscriptBot {
         return;
       }
 
-      const requestId = this.store.create(captionInfo);
       await this.telegram.sendMessage(
         chatId,
         buildLanguageChoiceMessage(captionInfo),
         {
-          reply_markup: buildInlineKeyboard(requestId, captionInfo.tracks)
+          reply_markup: buildInlineKeyboard(captionInfo.videoId, captionInfo.tracks)
         }
       );
     } catch (error) {
@@ -89,18 +87,20 @@ export class YoutubeTranscriptBot {
     const chatId = callbackQuery.message?.chat?.id;
     const messageId = callbackQuery.message?.message_id;
     const data = callbackQuery.data ?? "";
-    const match = data.match(/^yt:([^:]+):(\d+)$/);
+    const match = data.match(/^yt:([a-zA-Z0-9_-]{11}):(\d+)$/);
 
     if (!chatId || !match) {
       await this.telegram.answerCallbackQuery(callbackQuery.id, "Не удалось прочитать выбор.");
       return;
     }
 
-    const [, requestId, trackIndexText] = match;
-    const captionInfo = this.store.get(requestId);
+    const [, videoId, trackIndexText] = match;
+    let captionInfo;
 
-    if (!captionInfo) {
-      await this.telegram.answerCallbackQuery(callbackQuery.id, "Выбор устарел. Пришлите ссылку ещё раз.");
+    try {
+      captionInfo = await listCaptionTracks(videoId, this.fetchImpl);
+    } catch (error) {
+      await this.sendFriendlyError(chatId, error);
       return;
     }
 
@@ -121,7 +121,6 @@ export class YoutubeTranscriptBot {
 
     try {
       await this.sendTranscript(chatId, captionInfo, track);
-      this.store.delete(requestId);
     } catch (error) {
       await this.sendFriendlyError(chatId, error);
     }
@@ -130,7 +129,12 @@ export class YoutubeTranscriptBot {
   async sendTranscript(chatId, captionInfo, track) {
     await this.telegram.sendMessage(chatId, "Скачиваю текст субтитров...");
 
-    const transcript = await fetchTranscript(captionInfo.videoId, track, this.fetchImpl);
+    const transcript = await fetchTranscript(
+      captionInfo.videoId,
+      track,
+      this.fetchImpl,
+      this.config
+    );
     const documentText = buildTranscriptDocument({
       videoId: captionInfo.videoId,
       title: captionInfo.title,
