@@ -1,0 +1,16 @@
+{
+  "name": "youtube-video-transcript-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram bot that returns full YouTube video transcripts from uploaded or automatic subtitles.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "check": "node --check src/index.js && node --check src/bot.js && node --check src/youtube.js && node test/youtube.test.js",
+    "smoke:youtube": "node scripts/inspect-youtube.js"
+  }
+}
