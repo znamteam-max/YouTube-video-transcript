@@ -14,5 +14,8 @@
     "smoke:youtube": "node scripts/inspect-youtube.js",
     "cf:dev": "npx wrangler dev",
     "cf:deploy": "npx wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.88.0"
   }
 }
