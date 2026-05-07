@@ -15,7 +15,23 @@ export default {
     }
 
     if (url.pathname === "/setup-webhook") {
-      return setupWebhook(request, env);
+      try {
+        return await setupWebhook(request, env);
+      } catch (error) {
+        console.error(error);
+        return jsonResponse(
+          {
+            ok: false,
+            error: error?.message ?? "Unknown setup error",
+            missing: {
+              TELEGRAM_BOT_TOKEN: !env.TELEGRAM_BOT_TOKEN,
+              WEBHOOK_SECRET: !env.WEBHOOK_SECRET,
+              SETUP_SECRET: !env.SETUP_SECRET
+            }
+          },
+          { status: 500 }
+        );
+      }
     }
 
     if (url.pathname !== WEBHOOK_PATH) {
