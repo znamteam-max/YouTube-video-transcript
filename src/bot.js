@@ -9,6 +9,7 @@ import {
 } from "./format.js";
 import {
   extractVideoId,
+  fetchBestManagedTranscript,
   fetchTranscript,
   listCaptionTracks,
   YoutubeTranscriptError
@@ -63,6 +64,11 @@ export class YoutubeTranscriptBot {
 
     await this.telegram.sendMessage(chatId, "Смотрю, какие субтитры доступны для видео...");
 
+    if (this.shouldUseManagedTranscriptProvider()) {
+      await this.sendBestManagedTranscript(chatId, videoId);
+      return;
+    }
+
     try {
       const captionInfo = await listCaptionTracks(videoId, this.fetchImpl);
 
@@ -79,6 +85,11 @@ export class YoutubeTranscriptBot {
         }
       );
     } catch (error) {
+      if (this.isCloudflareYoutubeRateLimit(error)) {
+        await this.sendBestManagedTranscript(chatId, videoId);
+        return;
+      }
+
       await this.sendFriendlyError(chatId, error);
     }
   }
@@ -129,12 +140,12 @@ export class YoutubeTranscriptBot {
   async sendTranscript(chatId, captionInfo, track) {
     await this.telegram.sendMessage(chatId, "Скачиваю текст субтитров...");
 
-    const transcript = await fetchTranscript(
+    const transcript = track.managedTranscriptText ?? await fetchTranscript(
       captionInfo.videoId,
       track,
       this.fetchImpl,
-      this.config
-    );
+        this.config
+      );
     const documentText = buildTranscriptDocument({
       videoId: captionInfo.videoId,
       title: captionInfo.title,
@@ -159,6 +170,46 @@ export class YoutubeTranscriptBot {
     }
 
     await this.telegram.sendMessage(chatId, documentText);
+  }
+
+  async sendBestManagedTranscript(chatId, videoId) {
+    try {
+      await this.telegram.sendMessage(
+        chatId,
+        "YouTube ограничивает прямые запросы с Cloudflare. Пробую получить лучшую доступную расшифровку через transcript provider..."
+      );
+
+      const result = await fetchBestManagedTranscript(
+        videoId,
+        this.fetchImpl,
+        this.config
+      );
+
+      await this.sendTranscript(
+        chatId,
+        {
+          videoId: result.videoId,
+          title: result.title
+        },
+        {
+          ...result.track,
+          managedTranscriptText: result.transcript
+        }
+      );
+    } catch (error) {
+      await this.sendFriendlyError(chatId, error);
+    }
+  }
+
+  shouldUseManagedTranscriptProvider() {
+    return Boolean(this.config?.YOUTUBE_TRANSCRIPT_DEV_API_KEY)
+      && this.config?.YOUTUBE_TRANSCRIPT_PROVIDER !== "youtube";
+  }
+
+  isCloudflareYoutubeRateLimit(error) {
+    return error instanceof YoutubeTranscriptError
+      && error.code === "YOUTUBE_HTTP_ERROR"
+      && error.message.includes("429");
   }
 
   async sendFriendlyError(chatId, error) {

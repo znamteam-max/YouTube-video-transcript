@@ -33,14 +33,16 @@ workers_dev = true
 TELEGRAM_BOT_TOKEN=123456789:your_bot_token
 WEBHOOK_SECRET=long_random_secret_for_telegram_header
 SETUP_SECRET=long_random_secret_for_one_time_setup_url
+YOUTUBE_TRANSCRIPT_DEV_API_KEY=your_api_key
 ```
 
 Optional:
 
 ```env
 YOUTUBE_PO_TOKEN=
-YOUTUBE_TRANSCRIPT_DEV_API_KEY=
 ```
+
+`YOUTUBE_TRANSCRIPT_DEV_API_KEY` is strongly recommended for Cloudflare Workers. YouTube often returns HTTP 429 to direct requests from data center IPs, including Workers. When this key is present, the bot skips direct YouTube scraping and asks the transcript provider for the best available caption track.
 
 5. Deploy the Worker.
 6. Open this URL once in your browser:

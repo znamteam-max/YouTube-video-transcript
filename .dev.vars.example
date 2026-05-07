@@ -5,5 +5,5 @@ SETUP_SECRET=replace_with_random_setup_secret
 # Optional. Some YouTube caption endpoints require a Proof-of-Origin token.
 YOUTUBE_PO_TOKEN=
 
-# Optional fallback provider: https://youtubetranscript.dev/api-docs
+# Recommended on Cloudflare Workers. Fallback provider: https://youtubetranscript.dev/api-docs
 YOUTUBE_TRANSCRIPT_DEV_API_KEY=
